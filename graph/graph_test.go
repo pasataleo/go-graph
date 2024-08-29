@@ -121,23 +121,53 @@ func TestGraph_Walk(t *testing.T) {
 			},
 			expected: "abcd",
 		},
+		{
+			graph: func(g Graph, builder *strings.Builder) Graph {
+				g.AddNode("a", Executable(func(ctx context.Context) error {
+					builder.WriteString("a")
+					return nil
+				}))
+				g.AddNode("b", Expandable(func(ctx context.Context) (Graph, error) {
+					graph := NewGraph()
+					graph.AddNode("b1", Expandable(func(ctx context.Context) (Graph, error) {
+						graph := NewGraph()
+						graph.AddNode("b11", Executable(func(ctx context.Context) error {
+							builder.WriteString("b11")
+							return nil
+						}))
+						graph.AddNode("b12", Executable(func(ctx context.Context) error {
+							builder.WriteString("b12")
+							return nil
+						}))
+						graph.Connect("b11", "b12")
+						return graph, nil
+					}))
+					return graph, nil
+				}))
+				g.AddNode("c", Executable(func(ctx context.Context) error {
+					builder.WriteString("c")
+					return nil
+				}))
+
+				g.Connect("a", "b")
+				g.Connect("b", "c")
+				return g
+			},
+			expected: "ab11b12c",
+		},
 	}
 
 	for _, tc := range tcs {
 		t.Run(tc.expected, func(t *testing.T) {
-			g := NewGraph()
-
 			var builder strings.Builder
-			g = tc.graph(g, &builder)
-
-			tests.ExecuteE(g.WalkP(context.Background(), 1)).NoError(t)
+			tests.ExecuteE(tc.graph(NewGraph(), &builder).Walk(context.Background(), 1)).NoError(t)
 			tests.Execute(builder.String()).Equal(t, tc.expected)
 		})
 	}
 
 }
 
-func TestGraph_Walk_Error(t *testing.T) {
+func TestGraph_Validate_Error(t *testing.T) {
 	tcs := []struct {
 		graph       func(g Graph) Graph
 		expectedErr string
@@ -170,7 +200,7 @@ func TestGraph_Walk_Error(t *testing.T) {
 
 				return g
 			},
-			expectedErr: "failed to validate graph: found cycle in graph: b -> c -> d -> b",
+			expectedErr: "found cycle in graph: b -> c -> d -> b",
 		},
 		{
 			graph: func(g Graph) Graph {
@@ -188,7 +218,7 @@ func TestGraph_Walk_Error(t *testing.T) {
 				g.Connect("b", "c")
 				return g
 			},
-			expectedErr: "failed to validate graph: found cycle in graph: a -> b -> a",
+			expectedErr: "found cycle in graph: a -> b -> a",
 		},
 		{
 			graph: func(g Graph) Graph {
@@ -206,15 +236,13 @@ func TestGraph_Walk_Error(t *testing.T) {
 				g.Connect("c", "a")
 				return g
 			},
-			expectedErr: "failed to validate graph: found cycle in graph: a -> b -> a",
+			expectedErr: "found cycle in graph: a -> b -> a",
 		},
 	}
 	for _, tc := range tcs {
 		t.Run(tc.expectedErr, func(t *testing.T) {
-			g := NewGraph()
-			g = tc.graph(g)
-
-			tests.ExecuteE(g.Walk(context.Background())).MatchesError(t, tc.expectedErr)
+			tests.ExecuteE(tc.graph(NewGraph()).Validate()).
+				MatchesError(t, tc.expectedErr)
 		})
 	}
 }
