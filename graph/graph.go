@@ -1,35 +1,33 @@
 package graph
 
 import (
+	"context"
 	"fmt"
 )
-
-// Key is a key in the graph.
-type Key string
 
 // Graph is a graph data structure.
 type Graph struct {
 	// nodes is a map of nodes in the graph.
-	nodes map[Key]*node
+	nodes map[string]*node
 
 	// starters is a map of nodes that have no parents.
-	starters map[Key]bool
+	starters map[string]bool
 
 	// finishers is a map of nodes that have no children.
-	finishers map[Key]bool
+	finishers map[string]bool
 }
 
 // NewGraph creates a new graph.
 func NewGraph() Graph {
 	return Graph{
-		nodes:     make(map[Key]*node),
-		starters:  make(map[Key]bool),
-		finishers: make(map[Key]bool),
+		nodes:     make(map[string]*node),
+		starters:  make(map[string]bool),
+		finishers: make(map[string]bool),
 	}
 }
 
 // AddNode adds a node to the graph.
-func (g Graph) AddNode(key Key, impl interface{}) {
+func (g Graph) AddNode(key string, impl interface{}) {
 	if _, ok := impl.(ExecutableNode); ok {
 		g.nodes[key] = &node{
 			key:  key,
@@ -54,7 +52,7 @@ func (g Graph) AddNode(key Key, impl interface{}) {
 }
 
 // Connect connects two nodes in the graph.
-func (g Graph) Connect(from Key, to Key) {
+func (g Graph) Connect(from string, to string) {
 	if from == to {
 		panic(fmt.Errorf("cannot connect node %q to itself", from))
 	}
@@ -75,8 +73,8 @@ func (g Graph) Connect(from Key, to Key) {
 }
 
 // Starters returns the keys of the nodes that have no parents.
-func (g Graph) Starters() []Key {
-	starters := make([]Key, 0, len(g.starters))
+func (g Graph) Starters() []string {
+	starters := make([]string, 0, len(g.starters))
 	for key := range g.starters {
 		starters = append(starters, key)
 	}
@@ -84,10 +82,15 @@ func (g Graph) Starters() []Key {
 }
 
 // Finishers returns the keys of the nodes that have no children.
-func (g Graph) Finishers() []Key {
-	finishers := make([]Key, 0, len(g.finishers))
+func (g Graph) Finishers() []string {
+	finishers := make([]string, 0, len(g.finishers))
 	for key := range g.finishers {
 		finishers = append(finishers, key)
 	}
 	return finishers
+}
+
+func (g Graph) Walk(ctx context.Context, parallelism int) error {
+	var walker walker
+	return walker.Walk(ctx, g, parallelism)
 }

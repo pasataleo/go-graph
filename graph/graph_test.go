@@ -127,6 +127,31 @@ func TestGraph_Walk(t *testing.T) {
 					builder.WriteString("a")
 					return nil
 				}))
+				g.AddNode("b", Executable(func(ctx context.Context) error {
+					builder.WriteString("b")
+					return nil
+				}))
+				g.AddNode("c", Executable(func(ctx context.Context) error {
+					builder.WriteString("c")
+					return nil
+				}))
+				g.AddNode("d", Executable(func(ctx context.Context) error {
+					builder.WriteString("d")
+					return nil
+				}))
+				g.Connect("a", "b")
+				g.Connect("a", "c")
+				g.Connect("a", "d")
+				return g
+			},
+			expected: "abcd",
+		},
+		{
+			graph: func(g Graph, builder *strings.Builder) Graph {
+				g.AddNode("a", Executable(func(ctx context.Context) error {
+					builder.WriteString("a")
+					return nil
+				}))
 				g.AddNode("b", Expandable(func(ctx context.Context) (Graph, error) {
 					graph := NewGraph()
 					graph.AddNode("b1", Expandable(func(ctx context.Context) (Graph, error) {
@@ -159,8 +184,10 @@ func TestGraph_Walk(t *testing.T) {
 
 	for _, tc := range tcs {
 		t.Run(tc.expected, func(t *testing.T) {
+			ctx := AttachLogger(context.Background(), DefaultLogger(t.Logf))
+
 			var builder strings.Builder
-			tests.ExecuteE(tc.graph(NewGraph(), &builder).Walk(context.Background(), 1)).NoError(t)
+			tests.ExecuteE(tc.graph(NewGraph(), &builder).Walk(ctx, 1)).NoError(t)
 			tests.Execute(builder.String()).Equal(t, tc.expected)
 		})
 	}

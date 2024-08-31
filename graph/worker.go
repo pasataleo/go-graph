@@ -1,0 +1,52 @@
+package graph
+
+import (
+	"context"
+	"fmt"
+	"sync"
+)
+
+// worker is a worker that processes nodes in the graph.
+type worker struct {
+	walker *walker // retain a pointer to the walker.
+
+	// errored notifies the main thread when a node errors.
+	errored chan map[string]error
+
+	// expanded notifies the main thread when a node is expanded.
+	expanded chan map[string]Graph
+
+	// completed notifies the main thread when a node is complete.
+	completed chan string
+}
+
+// work processes nodes in the graph. Callers should call this in a goroutine, and can call it multiple times.
+func (worker *worker) work(ctx context.Context, pending chan string, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	for key := range pending {
+		node := worker.walker.nodes[key]
+
+		if executor, ok := node.impl.(ExecutableNode); ok {
+			logf(ctx, "executing node %q", key)
+			if err := executor.Execute(ctx); err != nil {
+				worker.errored <- map[string]error{key: fmt.Errorf("failed to execute node %q: %w", key, err)}
+				continue
+			}
+		}
+
+		if expander, ok := node.impl.(ExpandableNode); ok {
+			logf(ctx, "expanding node %q", key)
+			subgraph, err := expander.Expand(ctx)
+			if err != nil {
+				worker.errored <- map[string]error{key: fmt.Errorf("failed to expand node %q: %w", key, err)}
+				continue
+			}
+
+			worker.expanded <- map[string]Graph{key: subgraph}
+			continue
+		}
+
+		worker.completed <- key
+	}
+}

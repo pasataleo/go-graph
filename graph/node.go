@@ -4,15 +4,15 @@ import "context"
 
 // node is a node in the graph.
 type node struct {
-	// Key is the key of the node.
-	key Key
+	// key is the key of the node.
+	key string
 
 	// impl is the implementation of the node.
 	impl interface{}
 
 	// parents and children contain the parents and children of the node.
-	parents  []Key
-	children []Key
+	parents  []string
+	children []string
 }
 
 // ExecutableNode is a node that can be executed.
