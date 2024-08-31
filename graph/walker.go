@@ -3,7 +3,6 @@ package graph
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"github.com/pasataleo/go-errors/errors"
 )
@@ -132,9 +131,6 @@ func (walker *walker) Walk(ctx context.Context, graph Graph, parallelism int) er
 	walker.subgraphStarters = make(map[string][]string)
 	walker.subgraphFinishers = make(map[string]string)
 
-	var wg sync.WaitGroup
-	wg.Add(parallelism)
-
 	// errored, expanded, and completed are channels that the worker will send messages back to indicating the status of a
 	// node.
 	errored := make(chan map[string]error, 1)
@@ -156,7 +152,7 @@ func (walker *walker) Walk(ctx context.Context, graph Graph, parallelism int) er
 		ready <- key
 	}
 	for i := 0; i < parallelism; i++ {
-		go worker.work(ctx, ready, &wg)
+		go worker.work(ctx, ready)
 	}
 
 	for !walker.Empty() {
@@ -200,13 +196,11 @@ func (walker *walker) Walk(ctx context.Context, graph Graph, parallelism int) er
 		}
 	}
 
+	// Close the channels.
 	close(ready)
 	close(errored)
 	close(expanded)
 	close(completed)
-
-	// Now, wait until all the workers are done.
-	wg.Wait()
 
 	// If there are any errors, return them.
 	var multi error

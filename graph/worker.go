@@ -3,7 +3,6 @@ package graph
 import (
 	"context"
 	"fmt"
-	"sync"
 )
 
 // worker is a worker that processes nodes in the graph.
@@ -21,9 +20,7 @@ type worker struct {
 }
 
 // work processes nodes in the graph. Callers should call this in a goroutine, and can call it multiple times.
-func (worker *worker) work(ctx context.Context, pending chan string, wg *sync.WaitGroup) {
-	defer wg.Done()
-
+func (worker *worker) work(ctx context.Context, pending chan string) {
 	for key := range pending {
 		node := worker.walker.nodes[key]
 

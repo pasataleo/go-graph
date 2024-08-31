@@ -8,8 +8,14 @@ import (
 
 // Validate validates the graph and returns an error if it detects any cycles.
 func (g Graph) Validate() error {
-	visited := make(map[string]bool)
+	var keys []string
 	for key := range g.nodes {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	visited := make(map[string]bool)
+	for _, key := range keys {
 		if err := g.dfs(key, visited, nil); err != nil {
 			return err
 		}
@@ -37,13 +43,8 @@ func (g Graph) dfs(current string, visited map[string]bool, path []string) error
 	var children []string
 	children = append(children, g.nodes[current].children...)
 
-	sort.SliceStable(children, func(i, j int) bool {
-		// we sort the children to make sure the error messages are deterministic.
-		return children[i] < children[j]
-	})
-
+	sort.Strings(children)
 	for _, child := range children {
-		// recurse to do a depth-first search, TODO: we could also use a stack if we don't want to recurse.
 		if err := g.dfs(child, visited, path); err != nil {
 			return err
 		}
