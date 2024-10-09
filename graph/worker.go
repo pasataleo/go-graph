@@ -2,7 +2,8 @@ package graph
 
 import (
 	"context"
-	"fmt"
+
+	"github.com/pasataleo/go-errors/errors"
 )
 
 // worker is a worker that processes nodes in the graph.
@@ -25,18 +26,16 @@ func (worker *worker) work(ctx context.Context, pending chan string) {
 		node := worker.walker.nodes[key]
 
 		if executor, ok := node.impl.(ExecutableNode); ok {
-			logf(ctx, "executing node %q", key)
 			if err := executor.Execute(ctx); err != nil {
-				worker.errored <- map[string]error{key: fmt.Errorf("failed to execute node %q: %w", key, err)}
+				worker.errored <- map[string]error{key: errors.Embed(errors.New(err, FailedNode, "failed to execute node"), NodeKey, key)}
 				continue
 			}
 		}
 
 		if expander, ok := node.impl.(ExpandableNode); ok {
-			logf(ctx, "expanding node %q", key)
 			subgraph, err := expander.Expand(ctx)
 			if err != nil {
-				worker.errored <- map[string]error{key: fmt.Errorf("failed to expand node %q: %w", key, err)}
+				worker.errored <- map[string]error{key: errors.Embed(errors.New(err, FailedNode, "failed to expand node"), NodeKey, key)}
 				continue
 			}
 

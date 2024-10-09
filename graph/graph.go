@@ -17,6 +17,44 @@ type Graph struct {
 	finishers map[string]bool
 }
 
+// Opts contains options for walking the graph.
+type Opts struct {
+
+	// Parallelism is the maximum number of nodes to process in parallel.
+	//
+	// Defaults to 1.
+	Parallelism int
+
+	// Callbacks contains callbacks for various events in the graphs.
+	Callbacks Callbacks
+}
+
+// Callbacks contains callbacks for various events in the graphs.
+//
+// Each callback function is optional and will be ignored if nil.
+type Callbacks struct {
+	// OnExecute is called before a node starts executing.
+	OnComplete func(key string)
+
+	// OnExpand is called before a node starts expanding.
+	OnExpand func(key string)
+
+	// OnError is called when a node errors.
+	OnError func(key string, err error)
+}
+
+func (callbacks *Callbacks) validate() {
+	if callbacks.OnError == nil {
+		callbacks.OnError = func(key string, err error) {}
+	}
+	if callbacks.OnExpand == nil {
+		callbacks.OnExpand = func(key string) {}
+	}
+	if callbacks.OnComplete == nil {
+		callbacks.OnComplete = func(key string) {}
+	}
+}
+
 // NewGraph creates a new graph.
 func NewGraph() Graph {
 	return Graph{
@@ -90,7 +128,20 @@ func (g Graph) Finishers() []string {
 	return finishers
 }
 
-func (g Graph) Walk(ctx context.Context, parallelism int) error {
+func (g Graph) Walk(ctx context.Context, opts *Opts) error {
+	if opts == nil {
+		opts = &Opts{
+			Parallelism: 1,
+		}
+	}
+
+	if opts.Parallelism == 0 {
+		panic(fmt.Errorf("parallelism must be greater than 0"))
+	}
+
+	// make sure all callbacks are set
+	opts.Callbacks.validate()
+
 	var walker walker
-	return walker.Walk(ctx, g, parallelism)
+	return walker.Walk(ctx, g, opts)
 }

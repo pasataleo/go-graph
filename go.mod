@@ -1,8 +1,9 @@
 module github.com/pasataleo/go-graph
 
-go 1.22.1
+go 1.23
 
 replace github.com/pasataleo/go-testing => ../go-testing
+replace github.com/pasataleo/go-errors => ../go-errors
 
 require (
 	github.com/pasataleo/go-errors v0.1.2

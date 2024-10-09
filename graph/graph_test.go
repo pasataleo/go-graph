@@ -159,10 +159,21 @@ func TestGraph_Walk(t *testing.T) {
 
 	for _, tc := range tcs {
 		t.Run(tc.expected, func(t *testing.T) {
-			ctx := AttachLogger(context.Background(), DefaultLogger(t.Logf))
-
 			var builder strings.Builder
-			tests.ExecuteE(tc.graph(NewGraph(), &builder).Walk(ctx, 1)).NoError(t)
+			tests.ExecuteE(tc.graph(NewGraph(), &builder).Walk(context.Background(), &Opts{
+				Parallelism: 1,
+				Callbacks: Callbacks{
+					OnComplete: func(key string) {
+						t.Logf("completed: %s", key)
+					},
+					OnExpand: func(key string) {
+						t.Logf("expanded: %s", key)
+					},
+					OnError: func(key string, err error) {
+						t.Logf("errored: %s: %v", key, err)
+					},
+				},
+			})).NoError(t)
 			tests.Execute(builder.String()).Equal(t, tc.expected)
 		})
 	}

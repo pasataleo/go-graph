@@ -2,7 +2,6 @@ package graph
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/pasataleo/go-errors/errors"
 )
@@ -110,7 +109,7 @@ func (walker *walker) Completed(key string) []string {
 	return ready
 }
 
-func (walker *walker) Walk(ctx context.Context, graph Graph, parallelism int) error {
+func (walker *walker) Walk(ctx context.Context, graph Graph, opts *Opts) error {
 	if len(graph.nodes) == 0 {
 		return nil
 	}
@@ -139,7 +138,7 @@ func (walker *walker) Walk(ctx context.Context, graph Graph, parallelism int) er
 
 	// ready is a channel that the main thread will use to send messages to the workers indicating that a node is ready to
 	// be processed.
-	ready := make(chan string, parallelism)
+	ready := make(chan string, opts.Parallelism)
 
 	worker := &worker{
 		walker:    walker,
@@ -148,10 +147,10 @@ func (walker *walker) Walk(ctx context.Context, graph Graph, parallelism int) er
 		completed: completed,
 	}
 
-	for _, key := range walker.Process(parallelism) {
+	for _, key := range walker.Process(opts.Parallelism) {
 		ready <- key
 	}
-	for i := 0; i < parallelism; i++ {
+	for i := 0; i < opts.Parallelism; i++ {
 		go worker.work(ctx, ready)
 	}
 
@@ -159,16 +158,16 @@ func (walker *walker) Walk(ctx context.Context, graph Graph, parallelism int) er
 		select {
 		case errored := <-errored:
 			for key, err := range errored {
-				logf(ctx, "node %q errored: %v", key, err)
+				opts.Callbacks.OnError(key, err)
 				walker.Errored(key, err)
 			}
 
-			for _, key := range walker.Process(parallelism - len(ready)) {
+			for _, key := range walker.Process(opts.Parallelism - len(ready)) {
 				ready <- key
 			}
 		case expanded := <-expanded:
 			for key, subgraph := range expanded {
-				logf(ctx, "node %q expanded", key)
+				opts.Callbacks.OnExpand(key)
 
 				pending := walker.Expand(key, subgraph)
 				if len(pending) == 0 {
@@ -179,18 +178,18 @@ func (walker *walker) Walk(ctx context.Context, graph Graph, parallelism int) er
 				}
 			}
 
-			for _, key := range walker.Process(parallelism - len(ready)) {
+			for _, key := range walker.Process(opts.Parallelism - len(ready)) {
 				ready <- key
 			}
 		case completed := <-completed:
-			logf(ctx, "node %q completed", completed)
+			opts.Callbacks.OnComplete(completed)
 
 			pending := walker.Completed(completed)
 			for _, key := range pending {
 				walker.pending[key] = true
 			}
 
-			for _, key := range walker.Process(parallelism - len(ready)) {
+			for _, key := range walker.Process(opts.Parallelism - len(ready)) {
 				ready <- key
 			}
 		}
@@ -209,7 +208,11 @@ func (walker *walker) Walk(ctx context.Context, graph Graph, parallelism int) er
 	}
 
 	if len(walker.nodes) != (len(walker.completed) + len(walker.errored)) {
-		multi = errors.Append(fmt.Errorf("not all nodes completed"))
+		err := errors.New(nil, IncompleteGraph, "graph is incomplete")
+		err = errors.Embed(err, NodeCount, len(walker.nodes))
+		err = errors.Embed(err, CompletedCount, len(walker.completed))
+		err = errors.Embed(err, ErroredCount, len(walker.errored))
+		multi = errors.Append(errors.Append(multi, err))
 	}
 
 	return multi

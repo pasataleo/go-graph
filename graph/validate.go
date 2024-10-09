@@ -1,9 +1,10 @@
 package graph
 
 import (
-	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/pasataleo/go-errors/errors"
 )
 
 // Validate validates the graph and returns an error if it detects any cycles.
@@ -28,7 +29,7 @@ func (g Graph) dfs(current string, visited map[string]bool, path []string) error
 	for ix, ancestor := range path {
 		if ancestor == string(current) {
 			// Then we have a cycle.
-			return fmt.Errorf("found cycle in graph: %s", strings.Join(append(path[ix:], string(current)), " -> "))
+			return errors.Newf(nil, errors.ErrorCodeUnknown, "found cycle in graph: %s", strings.Join(append(path[ix:], current), " -> "))
 		}
 	}
 
@@ -38,7 +39,7 @@ func (g Graph) dfs(current string, visited map[string]bool, path []string) error
 	}
 
 	visited[current] = true
-	path = append(path, string(current))
+	path = append(path, current)
 
 	var children []string
 	children = append(children, g.nodes[current].children...)
