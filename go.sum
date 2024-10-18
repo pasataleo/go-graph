@@ -1,2 +1,12 @@
-github.com/google/go-cmp v0.5.9 h1:O2Tfq5qg4qc4AmwVlvv0oLiVAGB7enBSJ2x2DqQFi38=
-github.com/google/go-cmp v0.5.9/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
+github.com/google/go-cmp v0.6.0 h1:ofyhxvXcZhMsU5ulbFiLKl/XBFqE1GSq7atu8tAmTRI=
+github.com/google/go-cmp v0.6.0/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
+github.com/pasataleo/go-collections v0.2.0 h1:BbOsEAWKhVCu6TEtwj6SDDrm81by//vDFr4OZKhO+rs=
+github.com/pasataleo/go-collections v0.2.0/go.mod h1:ACk5XEC/o6mjsCvvuj5ODhW1Ot4FFz9tiMyLWbW12fs=
+github.com/pasataleo/go-errors v0.2.0 h1:bl5OdVzySTmtOylWfpWO28MZNvI531DWiR6GN9HCii0=
+github.com/pasataleo/go-errors v0.2.0/go.mod h1:hzgGSjSoyNCajQkCCIV5Zz6VNxQ1sxml9lHtWyjDvXo=
+github.com/pasataleo/go-objects v0.2.0 h1:sLY6o2paK5ibiAEgo41lIZogYvuSbnHH3WvMLJXn55U=
+github.com/pasataleo/go-objects v0.2.0/go.mod h1:/GWy8yOOPmRyHPUqICys57iTJKjmE55Vp3WtdFGUC78=
+github.com/pasataleo/go-testing v0.2.1 h1:BSBgba0fW0xiniL+1OEoPgO2GyFdx7zepG/4MSfCHS8=
+github.com/pasataleo/go-testing v0.2.1/go.mod h1:b7VOJrZLKZs4ia9o25XaU0rg44XwRJ7h0OWpZiuXXHw=
+github.com/pasataleo/go-threading v0.1.0 h1:9pSkHM8ZgUiDX+/6bz3MbySTTtDiZJvA9b5kQhIqQOg=
+github.com/pasataleo/go-threading v0.1.0/go.mod h1:+niENHKxPQDHZwXzbzxM0g8FgiQ5fuUhASkFOFXbZnw=
