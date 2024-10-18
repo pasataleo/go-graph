@@ -21,28 +21,28 @@ type worker struct {
 }
 
 // work processes nodes in the graph. Callers should call this in a goroutine, and can call it multiple times.
-func (worker *worker) work(ctx context.Context, pending chan string) {
-	for key := range pending {
-		node := worker.walker.nodes[key]
+func (worker *worker) work(ctx context.Context) {
+	key := ctx.Value("key").(string)
 
-		if executor, ok := node.impl.(ExecutableNode); ok {
-			if err := executor.Execute(ctx); err != nil {
-				worker.errored <- map[string]error{key: errors.Embed(errors.New(err, FailedNode, "failed to execute node"), NodeKey, key)}
-				continue
-			}
+	node := worker.walker.nodes[key]
+
+	if executor, ok := node.impl.(ExecutableNode); ok {
+		if err := executor.Execute(ctx); err != nil {
+			worker.errored <- map[string]error{key: errors.Embed(errors.New(err, FailedNode, "failed to execute node"), NodeKey, key)}
+			return
 		}
-
-		if expander, ok := node.impl.(ExpandableNode); ok {
-			subgraph, err := expander.Expand(ctx)
-			if err != nil {
-				worker.errored <- map[string]error{key: errors.Embed(errors.New(err, FailedNode, "failed to expand node"), NodeKey, key)}
-				continue
-			}
-
-			worker.expanded <- map[string]Graph{key: subgraph}
-			continue
-		}
-
-		worker.completed <- key
 	}
+
+	if expander, ok := node.impl.(ExpandableNode); ok {
+		subgraph, err := expander.Expand(ctx)
+		if err != nil {
+			worker.errored <- map[string]error{key: errors.Embed(errors.New(err, FailedNode, "failed to expand node"), NodeKey, key)}
+			return
+		}
+
+		worker.expanded <- map[string]Graph{key: subgraph}
+		return
+	}
+
+	worker.completed <- key
 }

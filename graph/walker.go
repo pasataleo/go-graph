@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/pasataleo/go-errors/errors"
+	"github.com/pasataleo/go-threading/threading"
 )
 
 type walker struct {
@@ -31,13 +32,9 @@ type walker struct {
 	subgraphFinishers map[string]string
 }
 
-func (walker *walker) Process(count int) []string {
+func (walker *walker) Process() []string {
 	var ready []string
 	for key := range walker.pending {
-		if len(ready) == count {
-			break
-		}
-
 		ready = append(ready, key)
 		delete(walker.pending, key)
 		walker.processing[key] = true
@@ -136,10 +133,6 @@ func (walker *walker) Walk(ctx context.Context, graph Graph, opts *Opts) error {
 	expanded := make(chan map[string]Graph, 1)
 	completed := make(chan string, 1)
 
-	// ready is a channel that the main thread will use to send messages to the workers indicating that a node is ready to
-	// be processed.
-	ready := make(chan string, opts.Parallelism)
-
 	worker := &worker{
 		walker:    walker,
 		errored:   errored,
@@ -147,11 +140,9 @@ func (walker *walker) Walk(ctx context.Context, graph Graph, opts *Opts) error {
 		completed: completed,
 	}
 
-	for _, key := range walker.Process(opts.Parallelism) {
-		ready <- key
-	}
-	for i := 0; i < opts.Parallelism; i++ {
-		go worker.work(ctx, ready)
+	pool := threading.NewThreadPool(opts.Parallelism)
+	for _, key := range walker.Process() {
+		threading.Run(context.WithValue(ctx, "key", key), pool, worker.work)
 	}
 
 	for !walker.Empty() {
@@ -162,8 +153,8 @@ func (walker *walker) Walk(ctx context.Context, graph Graph, opts *Opts) error {
 				walker.Errored(key, err)
 			}
 
-			for _, key := range walker.Process(opts.Parallelism - len(ready)) {
-				ready <- key
+			for _, key := range walker.Process() {
+				threading.Run(context.WithValue(ctx, "key", key), pool, worker.work)
 			}
 		case expanded := <-expanded:
 			for key, subgraph := range expanded {
@@ -178,8 +169,8 @@ func (walker *walker) Walk(ctx context.Context, graph Graph, opts *Opts) error {
 				}
 			}
 
-			for _, key := range walker.Process(opts.Parallelism - len(ready)) {
-				ready <- key
+			for _, key := range walker.Process() {
+				threading.Run(context.WithValue(ctx, "key", key), pool, worker.work)
 			}
 		case completed := <-completed:
 			opts.Callbacks.OnComplete(completed)
@@ -189,17 +180,19 @@ func (walker *walker) Walk(ctx context.Context, graph Graph, opts *Opts) error {
 				walker.pending[key] = true
 			}
 
-			for _, key := range walker.Process(opts.Parallelism - len(ready)) {
-				ready <- key
+			for _, key := range walker.Process() {
+				threading.Run(context.WithValue(ctx, "key", key), pool, worker.work)
 			}
 		}
 	}
 
 	// Close the channels.
-	close(ready)
 	close(errored)
 	close(expanded)
 	close(completed)
+
+	// Close the thread pool.
+	pool.Close()
 
 	// If there are any errors, return them.
 	var multi error
